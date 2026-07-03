@@ -17,12 +17,20 @@ export const RegisterPage = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (form.password !== form.confirmPassword) {
+      alert("Las contraseñas no coinciden");
+      return;
+    }
+    const response = await fetch("http://localhost:8080/auth/register", {
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+      body: JSON.stringify(form)
+    });
 
-    console.log(form);
-
-    // Llamada al backend
+    const data = await response.json();
+    console.log(data);
   };
 
   return (
