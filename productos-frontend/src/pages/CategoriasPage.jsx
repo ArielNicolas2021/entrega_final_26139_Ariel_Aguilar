@@ -31,12 +31,19 @@ export const CategoriasPage = () => {
   const [search, setSearch] = useState("");
   const filteredCategorias = categorias.filter((categoria) => categoria.nombre.toLowerCase().includes(search.toLowerCase()));
 
+  const token = localStorage.getItem("token");
+
   // Función para obtener las categorias desde el backend
   const fetchCategorias = async () => {
     try {
       setIsLoading(true);
 
-      const response = await fetch("http://localhost:8080/api/categorias");
+      const response = await fetch("http://localhost:8080/api/categorias", {
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
+      });
       const data = await response.json();
 
       setCategorias(data);
@@ -52,7 +59,10 @@ export const CategoriasPage = () => {
     try {
       const response = await fetch("http://localhost:8080/api/categorias", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify(categoria),
       });
 
@@ -90,7 +100,10 @@ export const CategoriasPage = () => {
     try {
       const response = await fetch(`http://localhost:8080/api/categorias/${updatedCategoria.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify(updatedCategoria)
       });
       if (!response.ok) {
@@ -121,7 +134,10 @@ export const CategoriasPage = () => {
   const handleDeleteCategoria = async (categoriaId) => {
     try {
       const response = await fetch(`http://localhost:8080/api/categorias/${categoriaId}`, {
-        method: "DELETE"
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
       });
       if (!response.ok) {
         throw new Error("Error al eliminar la categoría");

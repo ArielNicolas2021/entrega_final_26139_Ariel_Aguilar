@@ -27,6 +27,8 @@ export const ProductosPage = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
 
+  const token = localStorage.getItem("token");
+
   // Estado del buscador
   const [search, setSearch] = useState("");
   const filteredProducts = productos.filter((producto) => producto.nombre.toLowerCase().includes(search.toLowerCase()));
@@ -37,7 +39,10 @@ export const ProductosPage = () => {
       setIsLoading(true);
 
       const response = await fetch("http://localhost:8080/api/productos", {
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         method: "GET"
       });
       const data = await response.json();
@@ -55,7 +60,10 @@ export const ProductosPage = () => {
     try {
       const response = await fetch("http://localhost:8080/api/productos", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify(producto),
       });
 
@@ -91,7 +99,10 @@ export const ProductosPage = () => {
     try {
       const response = await fetch(`http://localhost:8080/api/productos/${updatedProducto.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify(updatedProducto),
       });
       if (!response.ok) {
@@ -127,6 +138,9 @@ export const ProductosPage = () => {
     try {
       const response = await fetch(`http://localhost:8080/api/productos/${productId}`, {
         method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
       });
 
       if (!response.ok) {
@@ -159,7 +173,10 @@ export const ProductosPage = () => {
     const fetchCategorias = async () => {
       try {
         const response = await fetch("http://localhost:8080/api/categorias", {
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
           method: "GET",
         });
 

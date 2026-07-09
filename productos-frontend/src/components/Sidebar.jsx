@@ -69,7 +69,7 @@ export default function Sidebar({ isOpen, setIsOpen, onLogout }) {
         {/* Footer */}
         <div className="p-5 border-t">
           <button onClick={onLogout} className="w-full rounded-xl bg-red-50 text-red-500 py-3 hover:bg-red-100 transition">
-            <div className="flex justify-center items-center gap-2">
+            <div className="flex justify-center items-center gap-2" onClick= {onLogout}>
               <LogOut size={18} />
               Cerrar sesión
             </div>
