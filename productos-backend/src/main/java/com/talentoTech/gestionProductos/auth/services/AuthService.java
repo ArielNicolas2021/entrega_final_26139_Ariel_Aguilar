@@ -3,11 +3,10 @@ package com.talentoTech.gestionProductos.auth.services;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.talentoTech.gestionProductos.auth.dto.AuthResponse;
+import com.talentoTech.gestionProductos.auth.dto.ApiResponse;
 import com.talentoTech.gestionProductos.auth.dto.LoginRequest;
 import com.talentoTech.gestionProductos.auth.dto.RegisterRequest;
-import com.talentoTech.gestionProductos.auth.exceptions.InvalidPasswordException;
-import com.talentoTech.gestionProductos.auth.exceptions.UserNotFoundException;
+import com.talentoTech.gestionProductos.auth.dto.TokenResponse;
 import com.talentoTech.gestionProductos.auth.model.UsuarioModel;
 import com.talentoTech.gestionProductos.auth.repository.UsuarioRepository;
 
@@ -21,10 +20,10 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
-    public String register(RegisterRequest request) {
+    public ApiResponse register(RegisterRequest request) {
 
         if (usuarioRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("El email ya está registrado.");
+            return new ApiResponse(400, "El correo electrónico ya está en uso.");
         }
 
         UsuarioModel usuario = UsuarioModel.builder()
@@ -35,18 +34,20 @@ public class AuthService {
 
         usuarioRepository.save(usuario);
 
-        return "Usuario registrado correctamente.";
+        return new ApiResponse(200, "Usuario registrado exitosamente.");
     }
 
-    public AuthResponse login(LoginRequest request) {
-        UsuarioModel usuario = usuarioRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new UserNotFoundException("Usuario no encontrado."));
+    public TokenResponse login(LoginRequest request) {
+        UsuarioModel usuario = usuarioRepository.findByEmail(request.getEmail());
+                if (usuario == null) {
+                    return new TokenResponse(400, "Usuario no encontrado", null);
+                }
 
         if (!passwordEncoder.matches(request.getPassword(), usuario.getPassword())) {
-            throw new InvalidPasswordException("Contraseña incorrecta.");
+            return new TokenResponse(400, "Contraseña incorrecta", null);
         }
 
         String token = jwtService.generateToken(usuario.getEmail());
-        return new AuthResponse(token);
+        return new TokenResponse(200, "Login exitoso", token);
     }
 }
