@@ -1,5 +1,5 @@
 package com.talentoTech.gestionProductos.producto.dto;
-
+  
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -20,7 +20,11 @@ public class ProductoRequest {
 
   @NotNull(message = "El id de la categoría es obligatorio.")
   @Min(value = 0, message = "El id de la categoría no puede ser negativo.")
-  private Long categoriaId;
+  private Long categoria;
+
+  @NotNull(message = "El id del usuario es obligatorio.")
+  @Min(value = 0, message = "El id del usuario no puede ser negativo.")
+  private Long usuario;
 
   public void setNombre(String nombre) {
     this.nombre = nombre;
@@ -46,11 +50,19 @@ public class ProductoRequest {
     return stock;
   }
 
-  public void setCategoriaId(Long categoriaId) {
-    this.categoriaId = categoriaId;
+  public void setCategoria(Long categoria) {
+    this.categoria = categoria;
   }
 
-  public Long getCategoriaId() {
-    return categoriaId;
+  public Long getCategoria() {
+    return categoria;
+  }
+
+  public void setUsuario(Long usuario) {
+    this.usuario = usuario;
+  }
+
+  public Long getUsuario() {
+    return usuario;
   }
 }

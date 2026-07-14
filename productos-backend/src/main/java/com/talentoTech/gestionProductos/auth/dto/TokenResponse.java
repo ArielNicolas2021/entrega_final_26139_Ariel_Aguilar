@@ -9,4 +9,5 @@ public class TokenResponse {
   private int status;
   private String message;
   private String token;
+  private Long usuarioId;
 }

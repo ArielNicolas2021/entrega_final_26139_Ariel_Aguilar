@@ -40,14 +40,14 @@ public class AuthService {
     public TokenResponse login(LoginRequest request) {
         UsuarioModel usuario = usuarioRepository.findByEmail(request.getEmail());
                 if (usuario == null) {
-                    return new TokenResponse(400, "Usuario no encontrado", null);
+                    return new TokenResponse(400, "Usuario no encontrado", null, null);
                 }
 
         if (!passwordEncoder.matches(request.getPassword(), usuario.getPassword())) {
-            return new TokenResponse(400, "Contraseña incorrecta", null);
+            return new TokenResponse(400, "Contraseña incorrecta", null, null);
         }
 
         String token = jwtService.generateToken(usuario.getEmail());
-        return new TokenResponse(200, "Login exitoso", token);
+        return new TokenResponse(200, "Login exitoso", token, usuario.getId());
     }
 }

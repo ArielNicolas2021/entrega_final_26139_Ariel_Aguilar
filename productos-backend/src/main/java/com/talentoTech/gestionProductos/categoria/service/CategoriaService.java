@@ -6,6 +6,8 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.talentoTech.gestionProductos.auth.model.UsuarioModel;
+import com.talentoTech.gestionProductos.auth.repository.UsuarioRepository;
 import com.talentoTech.gestionProductos.categoria.dto.CategoriaRequest;
 import com.talentoTech.gestionProductos.categoria.model.CategoriaModel;
 import com.talentoTech.gestionProductos.categoria.repository.CategoriaRepository;
@@ -14,6 +16,9 @@ import com.talentoTech.gestionProductos.categoria.repository.CategoriaRepository
 public class CategoriaService {
   @Autowired
   CategoriaRepository categoriaRepository;
+
+  @Autowired
+  UsuarioRepository usuarioRepository;
 
   // Obtener todas las categorias
   public ArrayList<CategoriaModel> getCategorias() {
@@ -27,9 +32,15 @@ public class CategoriaService {
 
   // Crear categoria
   public CategoriaModel createCategoria(CategoriaRequest request) {
+    UsuarioModel usuario = usuarioRepository
+        .findById(request.getUsuario())
+        .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
     CategoriaModel categoria = new CategoriaModel();
     categoria.setNombre(request.getNombre());
     categoria.setDescripcion(request.getDescripcion());
+    categoria.setUsuario(usuario);
+
     return categoriaRepository.save(categoria);
   }
 
@@ -46,8 +57,18 @@ public class CategoriaService {
     if (categoriaData.isPresent()) {
       CategoriaModel categoria = categoriaData.get();
 
-      if (request.getNombre() != null) { categoria.setNombre(request.getNombre()); }
-      if (request.getDescripcion() != null) { categoria.setDescripcion(request.getDescripcion()); }
+      if (request.getNombre() != null) {
+        categoria.setNombre(request.getNombre());
+      }
+      if (request.getDescripcion() != null) {
+        categoria.setDescripcion(request.getDescripcion());
+      }
+      if (request.getUsuario() != null) {
+        UsuarioModel usuario = usuarioRepository
+            .findById(request.getUsuario())
+            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        categoria.setUsuario(usuario);
+      }
 
       return Optional.of(categoriaRepository.save(categoria));
     } else {

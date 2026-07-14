@@ -2,6 +2,7 @@ package com.talentoTech.gestionProductos.categoria.model;
 
 import java.util.List;
 
+import com.talentoTech.gestionProductos.auth.model.UsuarioModel;
 import com.talentoTech.gestionProductos.producto.model.ProductoModel;
 
 import jakarta.persistence.*;
@@ -17,6 +18,10 @@ public class CategoriaModel {
 
   private String nombre;
   private String descripcion;
+  
+  @ManyToOne
+  @JoinColumn(name = "usuario_id")
+  private UsuarioModel usuario;
 
   @OneToMany(mappedBy = "categoria")
   private List<ProductoModel> productos;
@@ -44,5 +49,12 @@ public class CategoriaModel {
   public void setDescripcion(String descripcion) {
     this.descripcion = descripcion;
   }
+  
+  public UsuarioModel getUsuario() {
+    return usuario;
+  }
 
+  public void setUsuario(UsuarioModel usuario) {
+    this.usuario = usuario;
+  }
 }

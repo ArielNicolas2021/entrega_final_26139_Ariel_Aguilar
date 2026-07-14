@@ -1,13 +1,13 @@
 package com.talentoTech.gestionProductos.producto.controller;
 
-import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.talentoTech.gestionProductos.producto.dto.ProductoRequest;
+import com.talentoTech.gestionProductos.producto.dto.ProductoResponse;
 import com.talentoTech.gestionProductos.producto.model.ProductoModel;
 import com.talentoTech.gestionProductos.producto.service.ProductoService;
 
@@ -21,22 +21,20 @@ public class ProductoController {
 
   // Método GET
   @GetMapping()
-  public ArrayList<ProductoModel> getProductos() {
+  public List<ProductoResponse> getProductos() {
     return productoService.getProductos();
   }
 
   // Método GET con id
   @GetMapping("/{id}")
-  public ProductoModel getProductoById(@PathVariable Long id) {
+  public ProductoResponse getProductoById(@PathVariable Long id) {
     return productoService.getProductoById(id);
   }
 
   // Método POST
   @PostMapping()
-  public ResponseEntity<ProductoModel> createProducto(@Valid @RequestBody ProductoRequest request) {
-    ProductoModel productoGuardado = productoService.createProducto(request);
-
-    return ResponseEntity.status(HttpStatus.CREATED).body(productoGuardado);
+  public ProductoResponse crear(@RequestBody ProductoRequest request) {
+    return productoService.createProducto(request);
   }
 
   // Método DELETE
@@ -47,7 +45,8 @@ public class ProductoController {
 
   // Método PATCH (UPDATE pero también permite enviar solo algunos campos)
   @PatchMapping("/{id}")
-  public ResponseEntity<ProductoModel> updateProducto(@PathVariable Long id, @Valid @RequestBody ProductoRequest request) {
+  public ResponseEntity<ProductoModel> updateProducto(@PathVariable Long id,
+      @Valid @RequestBody ProductoRequest request) {
     Optional<ProductoModel> productoActualizado = productoService.updateProducto(id, request);
 
     if (productoActualizado.isPresent()) {

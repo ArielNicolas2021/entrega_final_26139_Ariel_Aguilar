@@ -1,5 +1,6 @@
 package com.talentoTech.gestionProductos.producto.model;
 
+import com.talentoTech.gestionProductos.auth.model.UsuarioModel;
 import com.talentoTech.gestionProductos.categoria.model.CategoriaModel;
 
 import jakarta.persistence.*;
@@ -20,6 +21,10 @@ public class ProductoModel {
   @ManyToOne
   @JoinColumn(name = "categoria_id")
   private CategoriaModel categoria;
+
+  @ManyToOne
+  @JoinColumn(name = "usuario_id")
+  private UsuarioModel usuario;
 
   public void setId(Long id) {
     this.id = id;
@@ -59,5 +64,13 @@ public class ProductoModel {
 
   public void setCategoria(CategoriaModel categoria) {
     this.categoria = categoria;
+  }
+
+  public UsuarioModel getUsuario() {
+    return usuario;
+  }
+
+  public void setUsuario(UsuarioModel usuario) {
+    this.usuario = usuario;
   }
 }
