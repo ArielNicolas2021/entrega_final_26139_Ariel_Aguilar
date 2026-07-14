@@ -18,6 +18,7 @@ export const ProductosPage = () => {
   // Estado para el Snackbar (mensaje de confirmación)
   const [showSnackbar, setShowSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [isSnackbarError, setIsSnackbarError] = useState(false);
 
   // Estado para el modal de edición
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -46,8 +47,9 @@ export const ProductosPage = () => {
         method: "GET"
       });
       const data = await response.json();
+      const filteredData = data.filter((producto) => producto.usuarioId === parseInt(localStorage.getItem("usuarioId")));
 
-      setProductos(data);
+      setProductos(filteredData);
     } catch (error) {
       console.error(error);
     } finally {
@@ -72,12 +74,14 @@ export const ProductosPage = () => {
       };
       await fetchProducts();
 
+      setIsSnackbarError(false);
       setSnackbarMessage("Producto creado correctamente");
       setShowSnackbar(true);
       setTimeout(() => {
         setShowSnackbar(false);
       }, 3000);
     } catch (error) {
+      setIsSnackbarError(true);
       setSnackbarMessage("Error al crear el producto");
       setShowSnackbar(true);
       setTimeout(() => {
@@ -237,6 +241,7 @@ export const ProductosPage = () => {
         show={showSnackbar}
         message={snackbarMessage}
         onClose={() => setShowSnackbar(false)}
+        isError={isSnackbarError}
       />
       <EditProductModal
         isOpen={isEditModalOpen}

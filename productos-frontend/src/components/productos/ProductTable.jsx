@@ -34,7 +34,7 @@ export default function ProductTable({ productos, onEdit, onDelete }) {
                     <h3 className="font-semibold text-gray-800">{producto.nombre}</h3>
                   </div>
                 </td>
-                <td className="px-6 py-5 text-gray-600">{producto.categoria?.nombre}</td>
+                <td className="px-6 py-5 text-gray-600">{producto.categoria}</td>
                 <td className="px-6 py-5 font-medium">${Number(producto.precio).toLocaleString("es-AR")}</td>
                 <td className="px-6 py-5">{producto.stock}</td>
                 <td className="px-6 py-5 text-center">

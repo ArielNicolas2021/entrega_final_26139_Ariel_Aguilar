@@ -17,7 +17,7 @@ export const CategoriasPage = () => {
   // Estado para el Snackbar (mensaje de confirmación)
   const [showSnackbar, setShowSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [type, setType] = useState("")
+  const [isSnackbarError, setIsSnackbarError] = useState(false);
 
   // Estado para el modal de edición
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -71,15 +71,15 @@ export const CategoriasPage = () => {
       };
       await fetchCategorias();
 
+      setIsSnackbarError(false);
       setSnackbarMessage("Categoría creada correctamente");
-      setType("success");
       setShowSnackbar(true);
       setTimeout(() => {
         setShowSnackbar(false);
       }, 3000);
     } catch (error) {
+      setIsSnackbarError(true);
       setSnackbarMessage("Error al crear la categoría");
-      setType("danger");
       setShowSnackbar(true);
       setTimeout(() => {
         setShowSnackbar(false);
@@ -113,14 +113,14 @@ export const CategoriasPage = () => {
       await fetchCategorias();
 
       setSnackbarMessage("Categoría actualizada correctamente");
-      setType("success");
+      setIsSnackbarError(false);
       setShowSnackbar(true);
       setTimeout(() => {
         setShowSnackbar(false);
       }, 3000);
     } catch (error) {
       setSnackbarMessage("Error al actualizar la categoría");
-      setType("danger");
+      setIsSnackbarError(true);
       setShowSnackbar(true);
       setTimeout(() => {
         setShowSnackbar(false);
@@ -144,7 +144,7 @@ export const CategoriasPage = () => {
       }
 
       setSnackbarMessage("Categoría eliminada correctamente");
-      setType("success");
+      setIsSnackbarError(false);
       setShowSnackbar(true);
       setTimeout(() => {
         setShowSnackbar(false);
@@ -155,7 +155,7 @@ export const CategoriasPage = () => {
       fetchCategorias();
     } catch (error) {
       setSnackbarMessage("No puedes eliminar la categoría porque uno o más productos dependen de ella");
-      setType("danger");
+      setIsSnackbarError(true);
       setShowSnackbar(true);
       setTimeout(() => {
         setShowSnackbar(false);
@@ -219,7 +219,7 @@ export const CategoriasPage = () => {
         show={showSnackbar}
         message={snackbarMessage}
         onClose={() => setShowSnackbar(false)}
-        type={type}
+        isError={isSnackbarError}
       />
       <EditCategoriaModal
         isOpen={isEditModalOpen}

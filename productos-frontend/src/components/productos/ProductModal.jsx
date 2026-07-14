@@ -6,7 +6,7 @@ export const ProductModal = ({ isOpen, onClose, onSave, categorias }) => {
     nombre: "",
     precio: "",
     stock: "",
-    categoriaId: "",
+    categoria: "",
   });
 
   // Estado para validar forms
@@ -29,8 +29,8 @@ export const ProductModal = ({ isOpen, onClose, onSave, categorias }) => {
     } else if (Number(producto.stock) < 0) {
       newErrors.stock = "El stock no puede ser negativo";
     }
-    if (!producto.categoriaId) {
-      newErrors.categoriaId = "Debe seleccionar una categoría";
+    if (!producto.categoria) {
+      newErrors.categoria = "Debe seleccionar una categoría";
     }
 
     setErrors(newErrors);
@@ -46,6 +46,7 @@ export const ProductModal = ({ isOpen, onClose, onSave, categorias }) => {
     setProducto({
       ...producto,
       [name]: value,
+      usuario: localStorage.getItem("usuarioId") || "",
     });
 
     if (errors[name]) {
@@ -60,14 +61,14 @@ export const ProductModal = ({ isOpen, onClose, onSave, categorias }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!validate()) return;
-
+    console.log(producto);
     onSave(producto);
 
     setProducto({
       nombre: "",
       precio: "",
       stock: "",
-      categoriaId: ""
+      categoria: ""
     });
 
     setErrors({});
@@ -83,7 +84,7 @@ export const ProductModal = ({ isOpen, onClose, onSave, categorias }) => {
         nombre: "",
         precio: "",
         stock: "",
-        categoriaId: ""
+        categoria: ""
       });
     }
   };
@@ -96,7 +97,7 @@ export const ProductModal = ({ isOpen, onClose, onSave, categorias }) => {
       nombre: "",
       precio: "",
       stock: "",
-      categoriaId: ""
+      categoria: ""
     });
   };
 
@@ -144,8 +145,8 @@ export const ProductModal = ({ isOpen, onClose, onSave, categorias }) => {
           </div>
 
           <div>
-            <label htmlFor="categoriaId">Categoría</label>
-            <select id="categoriaId" name="categoriaId" value={producto.categoriaId} onChange={handleChange} className={`w-full mt-1 px-4 py-3 rounded-lg bg-input-background border ${errors.categoriaId ? 'border-red-500' : 'border-border hover:border-gray-300'}`}>
+            <label htmlFor="categoria">Categoría</label>
+            <select id="categoria" name="categoria" value={producto.categoria} onChange={handleChange} className={`w-full mt-1 px-4 py-3 rounded-lg bg-input-background border ${errors.categoria ? 'border-red-500' : 'border-border hover:border-gray-300'}`}>
               <option value="">Seleccionar categoría</option>
 
               {categorias.map((categoria) => (
@@ -156,9 +157,9 @@ export const ProductModal = ({ isOpen, onClose, onSave, categorias }) => {
 
             </select>
 
-            {errors.categoriaId && (
+            {errors.categoria && (
               <p className="text-red-500 text-sm mt-1">
-                {errors.categoriaId}
+                {errors.categoria}
               </p>
             )}
 

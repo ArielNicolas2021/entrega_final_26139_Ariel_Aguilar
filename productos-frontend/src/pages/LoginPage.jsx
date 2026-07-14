@@ -67,6 +67,7 @@ export const LoginPage = () => {
     }
     
     localStorage.setItem("token", data.token);
+    localStorage.setItem("usuarioId", data.usuarioId);
 
     setForm({
       email: "",
