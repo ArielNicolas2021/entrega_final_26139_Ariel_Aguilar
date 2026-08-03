@@ -1,6 +1,6 @@
 # Sistema de Gestión de Productos
 
-![Foto de portada](#)
+![Foto de portada](./docs/gestion_productos_portada.png)
 
 ## Tabla de Contenidos
 
