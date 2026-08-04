@@ -54,11 +54,8 @@ Sistema web desarrollado para ayudar a las empresas a administrar sus productos 
 
 ## 📚 Diagramas
 
-### Diagrama de Clases
-![Diagrama de Clases](./docs/diagrama_clases.png)
-
-### Diagrama de Flujo
-![Diagrama de Flujo](./docs/diagrama_flujo.png)
+### Diagrama de entidad relacion
+![Diagrama de entidad relacion](./docs/gestion_productos_der.png)
 
 ## 📄 Licencia
 
