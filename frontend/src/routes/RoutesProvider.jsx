@@ -5,6 +5,7 @@ import { RegisterPage } from '../pages/RegisterPage.jsx'
 import { ProductosPage } from '../pages/ProductosPage.jsx'
 import MainLayout from '../components/MainLayout.jsx'
 import { CategoriasPage } from '../pages/CategoriasPage.jsx'
+import FacturarVenta from '../pages/FacturarVenta.jsx'
 
 export const RoutesProvider = () => {
   return (
@@ -12,14 +13,9 @@ export const RoutesProvider = () => {
       <Routes>
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/" element={<MainLayout />}>
-          <Route
-            path="/productos"
-            element={<ProductosPage />}
-          />
-          <Route
-            path="/categorias"
-            element={<CategoriasPage />}
-          />
+          <Route path="/productos" element={<ProductosPage />} />
+          <Route path="/categorias" element={<CategoriasPage />} />
+          <Route path="/ventas/facturar" element={<FacturarVenta />} />
         </Route>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />

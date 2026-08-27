@@ -1,177 +1,141 @@
 import { useEffect, useState } from "react";
-import { CategoriaModal } from "../components/categorias/CategoriaModal";
-import Snackbar from "../components/Snackbar";
-import EditCategoriaModal from "../components/categorias/EditCategoriaModal";
-import DeleteCategoriaModal from "../components/categorias/DeleteCategoriaModal";
+import { Snackbar } from "../components/Snackbar";
 import CategoriaToolbar from "../components/categorias/CategoriaToolbar";
-import CategoriaTable from "../components/categorias/CategoriaTable";
+import { DataTable } from "../components/DataTable";
+import { CreateCategoria } from "../components/categorias/CreateCategoria";
+import { EditCategoria } from "../components/categorias/EditCategoria";
+import { DeleteCategoria } from "../components/categorias/DeleteCategoria";
+import { useFetch } from "../utils/useFetch";
+import { Pencil, Trash2 } from "lucide-react";
 
 export const CategoriasPage = () => {
-  // Estado para cargar categorias
+  // Estado para obtener categorias
   const [categorias, setCategorias] = useState([]);
 
-  // Estado para el modal de agregar categorias
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  // Estado para los modals
+  const [action, setAction] = useState('');
 
   // Estado para el Snackbar (mensaje de confirmación)
-  const [showSnackbar, setShowSnackbar] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [isSnackbarError, setIsSnackbarError] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    message: '',
+    type: 'success'
+  });
 
-  // Estado para el modal de edición
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedCategoria, setSelectedCategoria] = useState(null);
+  // Estado para guardar la categoría a editar
+  const [editCategoria, setEditCategoria] = useState({});
 
-  // Estado para el modal de eliminación
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [categoriaToDelete, setcategoriaToDelete] = useState(null);
+  // Estado para guardar la categoría a eliminar
+  const [deleteCategoria, setDeleteCategoria] = useState({});
 
   // Estado del buscador
   const [search, setSearch] = useState("");
   const filteredCategorias = categorias.filter((categoria) => categoria.nombre.toLowerCase().includes(search.toLowerCase()));
+  /*
+  ===============================
+  Obtener categorías
+  ===============================
+  */
+  const getCategorias = async () => {
+    const response = await useFetch('/api/categorias', 'GET');
+    if (response.status == 400) return;
 
-  const token = localStorage.getItem("token");
-
-  // Función para obtener las categorias desde el backend
-  const fetchCategorias = async () => {
-    try {
-      setIsLoading(true);
-
-      const response = await fetch("http://localhost:8080/api/categorias", {
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        }
-      });
-      const data = await response.json();
-
-      setCategorias(data);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsLoading(false);
-    }
+    setCategorias(response);
   };
+  /*
+  ===============================
+  Crear categoría
+  ===============================
+  */
+  const handlePost = async (categoria) => {
+    const response = await useFetch('/api/categorias', 'POST', categoria);
 
-  // Guardamos la categoría creada en el modal, para luego enviar al backend
-  const handleSaveCategorias = async (categoria) => {
-    try {
-      const response = await fetch("http://localhost:8080/api/categorias", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify(categoria),
+    if (response.status == 400) {
+      setSnackbar({
+        message: 'Error al crear la categoría: ' + response.message,
+        type: 'error'
       });
-
-      if (!response.ok) {
-        throw new Error("No se pudo crear la categoría");
-      };
-      await fetchCategorias();
-
-      setIsSnackbarError(false);
-      setSnackbarMessage("Categoría creada correctamente");
-      setShowSnackbar(true);
-      setTimeout(() => {
-        setShowSnackbar(false);
-      }, 3000);
-    } catch (error) {
-      setIsSnackbarError(true);
-      setSnackbarMessage("Error al crear la categoría");
-      setShowSnackbar(true);
-      setTimeout(() => {
-        setShowSnackbar(false);
-      }, 3000);
-
-      console.error(error);
+      setAction(null);
+      return;
     }
-  };
 
-  // Abrir el modal para editar la categoría seleccionado
-  const handleEditCategoria = (categoria) => {
-    setSelectedCategoria(categoria);
-    setIsEditModalOpen(true);
+    setSnackbar({
+      message: 'Categoría creada correctamente',
+      type: 'success'
+    });
+    setAction(null);
+    getCategorias();
+  }
+  /*
+  ===============================
+  Editar categoria
+  ===============================
+  */
+  const toggleEdit = (categoria) => {
+    setEditCategoria(categoria);
+    setAction('edit');
   }
 
-  // Método para editar la categoría seleccionada
-  const handleUpdateCategoria = async (updatedCategoria) => {
-    try {
-      const response = await fetch(`http://localhost:8080/api/categorias/${updatedCategoria.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify(updatedCategoria)
+  const handleEdit = async (categoria) => {
+    const response = await useFetch(`/api/categorias/${editCategoria.id}`, 'PATCH', categoria);
+
+    if (response.status == 400) {
+      setSnackbar({
+        message: 'Error al editar la categoría: ' + response.message,
+        type: 'error'
       });
-      if (!response.ok) {
-        throw new Error("No se pudo actualizar la categoría");
-      };
-
-      await fetchCategorias();
-
-      setSnackbarMessage("Categoría actualizada correctamente");
-      setIsSnackbarError(false);
-      setShowSnackbar(true);
-      setTimeout(() => {
-        setShowSnackbar(false);
-      }, 3000);
-    } catch (error) {
-      setSnackbarMessage("Error al actualizar la categoría");
-      setIsSnackbarError(true);
-      setShowSnackbar(true);
-      setTimeout(() => {
-        setShowSnackbar(false);
-      }, 3000);
-
-      console.log(error);
+      setAction(null);
+      return;
     }
+
+    setSnackbar({
+      message: 'Categoría creada correctamente',
+      type: 'success'
+    });
+    setAction(null);
+    getCategorias();
+  }
+  /*
+  ===============================
+  Eliminar categoría
+  ===============================
+  */
+  const toggleDelete = (categoria) => {
+    setDeleteCategoria(categoria);
+    setAction('delete');
   }
 
-  // Método para eliminar la categoría seleccionada
-  const handleDeleteCategoria = async (categoriaId) => {
-    try {
-      const response = await fetch(`http://localhost:8080/api/categorias/${categoriaId}`, {
-        method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
+  const handleDelete = async (id) => {
+    const response = await useFetch(`/api/categorias/${id}`, 'DELETE');
+
+    if (response.status == 400) {
+      setSnackbar({
+        message: 'Error al eliminar la categoría: ' + response.message,
+        type: 'error'
       });
-      if (!response.ok) {
-        throw new Error("Error al eliminar la categoría");
-      }
-
-      setSnackbarMessage("Categoría eliminada correctamente");
-      setIsSnackbarError(false);
-      setShowSnackbar(true);
-      setTimeout(() => {
-        setShowSnackbar(false);
-      }, 3000);
-
-      setIsDeleteModalOpen(false)
-
-      fetchCategorias();
-    } catch (error) {
-      setSnackbarMessage("No puedes eliminar la categoría porque uno o más productos dependen de ella");
-      setIsSnackbarError(true);
-      setShowSnackbar(true);
-      setTimeout(() => {
-        setShowSnackbar(false);
-      }, 3000);
-      console.log(error)
+      setAction(null);
+      return;
     }
-  }
 
-  // Abrir el modal para eliminar el producto seleccionado
-  const handleDeleteClick = (categoria) => {
-    setcategoriaToDelete(categoria);
-    setIsDeleteModalOpen(true);
+    setSnackbar({
+      message: 'Categoría eliminada correctamente',
+      type: 'success'
+    });
+    setAction(null);
+    getCategorias();
+  }
+  /*
+  ===============================
+  Render para los modals
+  ===============================
+  */
+  const modals = {
+    post: <CreateCategoria onClose={() => setAction(null)} onSave={handlePost} />,
+    edit: <EditCategoria onClose={() => setAction(null)} onUpdate={handleEdit} data={editCategoria} />,
+    delete: <DeleteCategoria onClose={() => setAction(null)} onDelete={handleDelete} data={deleteCategoria} />
   }
 
   useEffect(() => {
-    fetchCategorias();
+    getCategorias();
     document.title = "Categorías | Product Manager";
   }, []);
 
@@ -196,43 +160,33 @@ export const CategoriasPage = () => {
           <CategoriaToolbar
             search={search}
             setSearch={setSearch}
-            onNewCategoria={() => setIsModalOpen(true)}
+            onNewCategoria={() => setAction('post')}
             onExport={() => console.log("Exportar")}
             onFilter={() => console.log("Filtros")}
           />
 
           {/* Tabla */}
-          <CategoriaTable
-            categorias={categorias}
-            onEdit={handleEditCategoria}
-            onDelete={handleDeleteClick}
+          <DataTable
+            data={categorias}
+            columns={[
+              ['id', 'ID'],
+              ['nombre', 'Nombre'],
+              ['descripcion', 'Descripción'],
+              ['acciones', 'Acciones', (categoria) => (
+                <div className="flex gap-2">
+                  <button onClick={() => toggleEdit(categoria)} className="rounded-lg p-2 text-blue-600 hover:bg-blue-50" title="Editar"><Pencil size={18} /></button>
+                  <button onClick={() => toggleDelete(categoria)} className="rounded-lg p-2 text-red-600 hover:bg-red-50"><Trash2 size={18} /></button>
+                </div>
+              )]
+            ]}
           />
         </div>
       </main>
-      <CategoriaModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={handleSaveCategorias}
-        categorias={categorias}
-      />
       <Snackbar
-        show={showSnackbar}
-        message={snackbarMessage}
-        onClose={() => setShowSnackbar(false)}
-        isError={isSnackbarError}
+        {...snackbar}
+        onClose={() => setSnackbar({ message: '' })}
       />
-      <EditCategoriaModal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        categoria={selectedCategoria}
-        onUpdate={handleUpdateCategoria}
-      />
-      <DeleteCategoriaModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={handleDeleteCategoria}
-        categoria={categoriaToDelete}
-      />
+      {modals[action]}
     </div>
   );
 };

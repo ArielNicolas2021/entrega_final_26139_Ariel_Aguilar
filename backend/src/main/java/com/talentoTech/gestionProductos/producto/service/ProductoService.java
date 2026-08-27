@@ -1,127 +1,116 @@
 package com.talentoTech.gestionProductos.producto.service;
 
 import java.util.List;
-import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
-import com.talentoTech.gestionProductos.producto.dto.ProductoRequest;
-import com.talentoTech.gestionProductos.producto.dto.ProductoResponse;
-import com.talentoTech.gestionProductos.auth.model.UsuarioModel;
+import com.talentoTech.gestionProductos.producto.dto.ProductoDTO;
+import com.talentoTech.gestionProductos.producto.dto.ProductoDeleteDTO;
+import com.talentoTech.gestionProductos.auth.model.Usuario;
 import com.talentoTech.gestionProductos.auth.repository.UsuarioRepository;
-import com.talentoTech.gestionProductos.categoria.model.CategoriaModel;
-import com.talentoTech.gestionProductos.producto.model.ProductoModel;
+import com.talentoTech.gestionProductos.categoria.model.Categoria;
+import com.talentoTech.gestionProductos.producto.model.Producto;
 import com.talentoTech.gestionProductos.categoria.repository.CategoriaRepository;
+import com.talentoTech.gestionProductos.mapper.Mapper;
 import com.talentoTech.gestionProductos.producto.repository.ProductoRepository;
 
 @Service
-public class ProductoService {
+public class ProductoService implements IProductoService {
   @Autowired
-  ProductoRepository productoRepository;
+  private ProductoRepository productoRepository;
 
   @Autowired
-  CategoriaRepository categoriaRepository;
+  private CategoriaRepository categoriaRepository;
 
   @Autowired
-  UsuarioRepository usuarioRepository;
+  private UsuarioRepository usuarioRepository;
 
   // Obtener todos los productos
-  public List<ProductoResponse> getProductos() {
-    List<ProductoModel> productos = (List<ProductoModel>) productoRepository.findAll();
-    return productos.stream().map(producto -> ProductoResponse.builder()
-        .id(producto.getId())
-        .nombre(producto.getNombre())
-        .precio(producto.getPrecio())
-        .stock(producto.getStock())
-        .usuarioId(producto.getUsuario().getId())
-        .categoria(producto.getCategoria().getNombre())
-        .build()).collect(java.util.stream.Collectors.toList());
+  public List<ProductoDTO> readProductos(Authentication auth) {
+    // Obtener el usuario autenticado
+    Usuario usuario = usuarioRepository.findByEmail(auth.getName());
+
+    return productoRepository.findByUsuario(usuario).stream().map(Mapper::toDTO).toList();
   }
 
   // Obtener un producto por su id
-  public ProductoResponse getProductoById(Long id) {
-    ProductoModel producto = productoRepository.findById(id)
-        .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+  public ProductoDTO readProductoById(Long id, Authentication auth) {
+    // Obtener el usuario autenticado
+    Usuario usuario = usuarioRepository.findByEmail(auth.getName());
 
-    return ProductoResponse.builder()
-        .id(producto.getId())
-        .nombre(producto.getNombre())
-        .precio(producto.getPrecio())
-        .stock(producto.getStock())
-        .usuarioId(producto.getUsuario().getId())
-        .categoria(producto.getCategoria().getNombre())
-        .build();
+    Producto producto = productoRepository.findByIdAndUsuario(id, usuario).orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+
+    return Mapper.toDTO(producto);
   }
 
   // Crear producto
-  public ProductoResponse createProducto(ProductoRequest request) {
-    CategoriaModel categoria = categoriaRepository
-        .findById(request.getCategoria())
-        .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
+  public ProductoDTO createProducto(ProductoDTO prod, Authentication auth) {
+    // Obtener la categoría por su id
+    Categoria categoria = categoriaRepository.findById(prod.getCategoriaID()).orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
 
-    UsuarioModel usuario = usuarioRepository
-        .findById(request.getUsuario())
-        .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+    // Obtener el usuario autenticado
+    Usuario usuario = usuarioRepository.findByEmail(auth.getName());
 
-    ProductoModel producto = new ProductoModel();
-    producto.setNombre(request.getNombre());
-    producto.setPrecio(request.getPrecio());
-    producto.setStock(request.getStock());
+    // Crear un nuevo producto
+    Producto producto = new Producto();
+
+    producto.setNombre(prod.getNombre());
+    producto.setPrecio(prod.getPrecio());
+    producto.setStock(prod.getStock());
     producto.setCategoria(categoria);
     producto.setUsuario(usuario);
 
-    ProductoModel productoGuardado = productoRepository.save(producto);
+    Producto saveProducto = productoRepository.save(producto);
 
-    return ProductoResponse.builder()
-        .id(productoGuardado.getId())
-        .nombre(productoGuardado.getNombre())
-        .precio(productoGuardado.getPrecio())
-        .stock(productoGuardado.getStock())
-        .usuarioId(productoGuardado.getUsuario().getId())
-        .categoria(productoGuardado.getCategoria().getNombre())
-        .build();
+    return Mapper.toDTO(saveProducto);
   }
 
   // Eliminar producto
-  public String deleteProducto(Long id) {
+  public ProductoDeleteDTO deleteProducto(Long id, Authentication auth) {
+    // Obtener el usuario autenticado
+    Usuario usuario = usuarioRepository.findByEmail(auth.getName());
+    if (usuario == null) {
+      throw new RuntimeException("Usuario no encontrado");
+    }
+
+    // Verificar si el producto pertenece al usuario
+    Producto producto = productoRepository.findById(id).orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+    if (!producto.getUsuario().getId().equals(usuario.getId())) {
+      throw new RuntimeException("No tienes permiso para eliminar este producto");
+    }
+
     productoRepository.deleteById(id);
-    return "Producto eliminado!";
+    return ProductoDeleteDTO.builder()
+      .status(200)
+      .message("Producto eliminado correctamente")
+      .build();
   }
 
   // Modificar producto
-  public Optional<ProductoModel> updateProducto(Long id, ProductoRequest request) {
-    Optional<ProductoModel> productoData = productoRepository.findById(id);
+  public ProductoDTO updateProducto(Long id, ProductoDTO productoDto, Authentication auth) {
+    // Obtener el producto
+    Producto producto = productoRepository.findById(id).orElseThrow(() -> new RuntimeException("Producto no encontrado"));
 
-    if (productoData.isPresent()) {
-      ProductoModel productoModel = productoData.get();
+    // Obtener la categoria
+    Categoria categoria = categoriaRepository.findById(productoDto.getCategoriaID()).orElseThrow(() -> new RuntimeException("Categoria no encontrada"));
 
-      if (request.getNombre() != null) {
-        productoModel.setNombre(request.getNombre());
-      }
-      if (request.getPrecio() != 0.0) {
-        productoModel.setPrecio(request.getPrecio());
-      }
-      if (request.getStock() != 0) {
-        productoModel.setStock(request.getStock());
-      }
-      if (request.getCategoria() != null) {
-        CategoriaModel categoria = categoriaRepository
-            .findById(request.getCategoria())
-            .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
-        productoModel.setCategoria(categoria);
-      }
-
-      if (request.getUsuario() != null) {
-        UsuarioModel usuario = usuarioRepository
-            .findById(request.getUsuario())
-            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-        productoModel.setUsuario(usuario);
-      }
-
-      return Optional.of(productoRepository.save(productoModel));
-    } else {
-      return Optional.empty();
+    // Obtener el usuario
+    Usuario usuario = usuarioRepository.findByEmail(auth.getName());
+    if (usuario == null) {
+      throw new RuntimeException("Usuario no encontrado");
     }
+
+    // Actualizar los campos del producto
+    producto.setNombre(productoDto.getNombre());
+    producto.setPrecio(productoDto.getPrecio());
+    producto.setStock(productoDto.getStock());
+    producto.setCategoria(categoria);
+    producto.setUsuario(usuario);
+
+    Producto saveProducto = productoRepository.save(producto);
+
+    return Mapper.toDTO(saveProducto);
   }
 }

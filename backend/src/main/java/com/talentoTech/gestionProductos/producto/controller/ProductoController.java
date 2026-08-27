@@ -1,14 +1,13 @@
 package com.talentoTech.gestionProductos.producto.controller;
 
 import java.util.List;
-import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import com.talentoTech.gestionProductos.producto.dto.ProductoRequest;
-import com.talentoTech.gestionProductos.producto.dto.ProductoResponse;
-import com.talentoTech.gestionProductos.producto.model.ProductoModel;
+import com.talentoTech.gestionProductos.producto.dto.ProductoDTO;
+import com.talentoTech.gestionProductos.producto.dto.ProductoDeleteDTO;
 import com.talentoTech.gestionProductos.producto.service.ProductoService;
 
 import jakarta.validation.Valid;
@@ -21,38 +20,33 @@ public class ProductoController {
 
   // Método GET
   @GetMapping()
-  public List<ProductoResponse> getProductos() {
-    return productoService.getProductos();
+  public ResponseEntity<List<ProductoDTO>> getProductos(Authentication auth) {
+    return ResponseEntity.ok(productoService.readProductos(auth));
   }
 
   // Método GET con id
   @GetMapping("/{id}")
-  public ProductoResponse getProductoById(@PathVariable Long id) {
-    return productoService.getProductoById(id);
+  public ResponseEntity<ProductoDTO> getProductoById(@PathVariable Long id, Authentication auth) {
+    return ResponseEntity.ok(productoService.readProductoById(id, auth));
   }
 
   // Método POST
   @PostMapping()
-  public ProductoResponse crear(@RequestBody ProductoRequest request) {
-    return productoService.createProducto(request);
+  public ResponseEntity<ProductoDTO> postProducto(@Valid @RequestBody ProductoDTO dto, Authentication auth) {
+    return ResponseEntity.ok(productoService.createProducto(dto, auth));
   }
 
   // Método DELETE
   @DeleteMapping("/{id}")
-  public String deleteProducto(@PathVariable Long id) {
-    return productoService.deleteProducto(id);
+  public ResponseEntity<ProductoDeleteDTO> deleteProducto(@PathVariable Long id, Authentication auth) {
+    return ResponseEntity.ok(productoService.deleteProducto(id, auth));
   }
 
-  // Método PATCH (UPDATE pero también permite enviar solo algunos campos)
+  // Métod PATCH
   @PatchMapping("/{id}")
-  public ResponseEntity<ProductoModel> updateProducto(@PathVariable Long id,
-      @Valid @RequestBody ProductoRequest request) {
-    Optional<ProductoModel> productoActualizado = productoService.updateProducto(id, request);
-
-    if (productoActualizado.isPresent()) {
-      return ResponseEntity.ok(productoActualizado.get());
-    } else {
-      return ResponseEntity.notFound().build();
-    }
+  public ResponseEntity<ProductoDTO> patchProducto(@PathVariable Long id, @Valid @RequestBody ProductoDTO dto,
+      Authentication auth) {
+    ProductoDTO updatedProducto = productoService.updateProducto(id, dto, auth);
+    return ResponseEntity.ok(updatedProducto);
   }
 }

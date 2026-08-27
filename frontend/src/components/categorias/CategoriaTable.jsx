@@ -12,6 +12,7 @@ export default function CategoriaTable({ categorias, onEdit, onDelete }) {
               <th className="px-6 py-4 text-left">ID</th>
               <th className="px-6 py-4 text-left">Categoría</th>
               <th className="px-6 py-4 text-left">Descripción</th>
+              <th className="px-6 py-4 text-left">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -32,7 +33,7 @@ export default function CategoriaTable({ categorias, onEdit, onDelete }) {
                 </td>
                 <td className="px-6 py-5 text-gray-600">{categoria.descripcion}</td>
                 <td className="px-6 py-5">
-                  <div className="flex justify-center gap-2">
+                  <div className="flex gap-2">
                     <button onClick={() => onEdit(categoria)} className="p-2 rounded-lg hover:bg-blue-100 transition">
                       <Pencil
                         size={18}

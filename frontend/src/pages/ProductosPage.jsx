@@ -1,199 +1,156 @@
 import { useState, useEffect } from "react";
-import { ProductModal } from "../components/productos/ProductModal.jsx";
-import Snackbar from "../components/Snackbar.jsx";
-import EditProductModal from "../components/productos/EditProductModal.jsx";
-import DeleteProductModal from "../components/productos/DeleteProductModal.jsx";
-import ProductTable from "../components/productos/ProductTable.jsx";
+import { CreateProduct } from "../components/productos/CreateProduct.jsx";
+import { Snackbar } from "../components/Snackbar.jsx";
+import { EditProduct } from "../components/productos/EditProduct.jsx";
+import { DeleteProduct } from "../components/productos/DeleteProduct.jsx";
 import ProductToolbar from "../components/productos/ProductToolbar.jsx";
+import { DataTable } from "../components/DataTable.jsx";
+import { useFetch } from "../utils/useFetch.js";
+import { Pencil, Trash2 } from "lucide-react";
 
 export const ProductosPage = () => {
-  // Estado para cargar productos y categorias
+  // Estado para obtener datos
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
 
-  // Estado para el modal de agregar productos
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  // Estado para los modals
+  const [action, setAction] = useState('');
 
   // Estado para el Snackbar (mensaje de confirmación)
-  const [showSnackbar, setShowSnackbar] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [isSnackbarError, setIsSnackbarError] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    message: '',
+    type: 'success'
+  });
 
-  // Estado para el modal de edición
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedProducto, setSelectedProducto] = useState(null);
+  // Estado para guardar el producto a editar
+  const [editProduct, setEditProduct] = useState({});
 
-  // Estado para el modal de eliminación
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [productToDelete, setProductToDelete] = useState(null);
-
-  const token = localStorage.getItem("token");
+  // Estado para guardar el producto a eliminar
+  const [deleteProduct, setDeleteProduct] = useState({});
 
   // Estado del buscador
   const [search, setSearch] = useState("");
   const filteredProducts = productos.filter((producto) => producto.nombre.toLowerCase().includes(search.toLowerCase()));
 
-  // Función para obtener los productos desde el backend
-  const fetchProducts = async () => {
-    try {
-      setIsLoading(true);
+  /*  
+  ==============================
+  Obtener productos
+  ==============================
+  */
+  const getProductos = async () => {
+    const response = await useFetch('/api/productos', 'GET');
+    if (response.status == 400) return;
 
-      const response = await fetch("http://localhost:8080/api/productos", {
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        method: "GET"
-      });
-      const data = await response.json();
-      const filteredData = data.filter((producto) => producto.usuarioId === parseInt(localStorage.getItem("usuarioId")));
-
-      setProductos(filteredData);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsLoading(false);
-    }
+    setProductos(response);
   };
+  /*  
+  ===============================
+  Obtener categorías
+  ===============================
+  */
+  const getCategorias = async () => {
+    const response = await useFetch('/api/categorias', 'GET');
+    if (response.status == 400) return;
 
-  // Guardamos el producto creado en el modal, para luego enviarlo al backend
-  const handleSaveProduct = async (producto) => {
-    try {
-      const response = await fetch("http://localhost:8080/api/productos", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify(producto),
-      });
-
-      if (!response.ok) {
-        throw new Error("No se pudo crear el producto");
-      };
-      await fetchProducts();
-
-      setIsSnackbarError(false);
-      setSnackbarMessage("Producto creado correctamente");
-      setShowSnackbar(true);
-      setTimeout(() => {
-        setShowSnackbar(false);
-      }, 3000);
-    } catch (error) {
-      setIsSnackbarError(true);
-      setSnackbarMessage("Error al crear el producto");
-      setShowSnackbar(true);
-      setTimeout(() => {
-        setShowSnackbar(false);
-      }, 3000);
-
-      console.error(error);
-    }
-  };
-
-  // Abrir el modal para editar el producto seleccionado
-  const handleEditProduct = (producto) => {
-    setSelectedProducto(producto);
-    setIsEditModalOpen(true);
+    setCategorias(response);
   }
 
-  // Método para editar el producto seleccionado
-  const handleUpdateProduct = async (updatedProducto) => {
-    try {
-      const response = await fetch(`http://localhost:8080/api/productos/${updatedProducto.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify(updatedProducto),
+  /*  
+  ===============================
+  Crear producto
+  ===============================
+  */
+  const handlePost = async (producto) => {
+    const response = await useFetch('/api/productos', 'POST', producto);
+
+    if (response.status == 400) {
+      setSnackbar({
+        message: 'Error al crear el producto: ' + response.message,
+        type: 'error'
       });
-      if (!response.ok) {
-        throw new Error("No se pudo actualizar el producto");
-      };
+      setAction(null);
+      return;
+    }
 
-      await fetchProducts();
-
-      setSnackbarMessage("Producto actualizado correctamente");
-      setShowSnackbar(true);
-      setTimeout(() => {
-        setShowSnackbar(false);
-      }, 3000);
-    } catch (error) {
-      setSnackbarMessage("Error al actualizar el producto");
-      setShowSnackbar(true);
-      setTimeout(() => {
-        setShowSnackbar(false);
-      }, 3000);
-
-      console.error(error);
-    };
+    setSnackbar({
+      message: 'Producto creado correctamente',
+      type: 'success'
+    });
+    setAction(null);
+    getProductos();
   };
+  /*
+  ===============================
+  Editar producto
+  ===============================
+  */
+  const toggleEdit = (producto) => {
+    setEditProduct(producto);
+    setAction("edit");
+  }
 
-  // Abrir el modal para eliminar el producto seleccionado
-  const handleDeleteClick = (producto) => {
-    setProductToDelete(producto);
-    setIsDeleteModalOpen(true);
-  };
+  const handleEdit = async (producto) => {
+    const response = await useFetch(`/api/productos/${editProduct.id}`, 'PATCH', producto);
 
-  // Método para eliminar el producto seleccionado
-  const handleDeleteProduct = async (productId) => {
-    try {
-      const response = await fetch(`http://localhost:8080/api/productos/${productId}`, {
-        method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
+    if (response.status == 400) {
+      setSnackbar({
+        message: 'Error al editar el producto: ' + response.message,
+        type: 'error'
       });
+      setAction(null);
+      return;
+    }
 
-      if (!response.ok) {
-        throw new Error("Error al eliminar producto");
-      }
+    setSnackbar({
+      message: 'Producto editado correctamente',
+      type: 'success'
+    });
+    setAction(null);
+    getProductos();
+  }
+  /*
+  ===============================
+  Eliminar producto
+  ===============================
+  */
+  const toggleDelete = (producto) => {
+    setDeleteProduct(producto);
+    setAction("delete");
+  }
 
-      setSnackbarMessage("Producto eliminado correctamente");
-      setShowSnackbar(true);
-      setTimeout(() => {
-        setShowSnackbar(false);
-      }, 3000);
+  const handleDelete = async (id) => {
+    const response = await useFetch(`/api/productos/${id}`, 'DELETE');
 
-      setIsDeleteModalOpen(false);
+    if (response.status == 400) {
+      setSnackbar({
+        message: 'Error al eliminar el producto: ' + response.message,
+        type: 'error'
+      });
+      setAction(null);
+      return;
+    }
 
-      // Recargar productos
-      fetchProducts();
-    } catch (error) {
-      setSnackbarMessage("Error al eliminar producto");
-      setShowSnackbar(true);
-      setTimeout(() => {
-        setShowSnackbar(false);
-      }, 3000);
-      console.error(error);
-    };
-  };
+    setSnackbar({
+      message: 'Producto eliminado correctamente',
+      type: 'success'
+    });
+    setAction(null);
+    getProductos();
+  }
+  /*
+  ===============================
+  Render para los modals
+  ===============================
+  */
+  const modals = {
+    post: <CreateProduct onClose={() => setAction(null)} onSave={handlePost} dataSelect={categorias} />,
+    edit: <EditProduct onClose={() => setAction(null)} onUpdate={handleEdit} dataSelect={categorias} data={editProduct} />,
+    delete: <DeleteProduct onClose={() => setAction(null)} onDelete={handleDelete} data={deleteProduct} />
+  }
 
-  // Usamos el hook personalizado para obtener los productos desde el backend
   useEffect(() => {
-    fetchProducts();
-    const fetchCategorias = async () => {
-      try {
-        const response = await fetch("http://localhost:8080/api/categorias", {
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          method: "GET",
-        });
-
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-        const data = await response.json();
-        setCategorias(data);
-      } catch (error) {
-        console.error("Could not fetch categorias:", error);
-      }
-    };
-
-    fetchCategorias();
+    getProductos();
+    getCategorias();
     document.title = "Productos | Product Manager";
   }, []);
 
@@ -218,44 +175,35 @@ export const ProductosPage = () => {
           <ProductToolbar
             search={search}
             setSearch={setSearch}
-            onNewProduct={() => setIsModalOpen(true)}
+            onNewProduct={() => setAction("post")}
             onExport={() => console.log("Exportar")}
             onFilter={() => console.log("Filtros")}
           />
 
           {/* Tabla */}
-          <ProductTable
-            productos={productos}
-            onEdit={handleEditProduct}
-            onDelete={handleDeleteClick}
+          <DataTable
+            data={productos}
+            columns={[
+              ['id', 'ID'],
+              ['nombre', 'Nombre'],
+              ['precio', 'Precio'],
+              ['stock', 'Stock'],
+              ['categoria', 'Categoría'],
+              ['acciones', 'Acciones', (producto) => (
+                <div className="flex gap-2">
+                  <button onClick={() => toggleEdit(producto)} className="rounded-lg p-2 text-blue-600 hover:bg-blue-50" title="Editar"><Pencil size={18} /></button>
+                  <button onClick={() => toggleDelete(producto)} className="rounded-lg p-2 text-red-600 hover:bg-red-50"><Trash2 size={18} /></button>
+                </div>
+              )]
+            ]}
           />
         </div>
       </main>
-      <ProductModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={handleSaveProduct}
-        categorias={categorias}
-      />
       <Snackbar
-        show={showSnackbar}
-        message={snackbarMessage}
-        onClose={() => setShowSnackbar(false)}
-        isError={isSnackbarError}
+        {...snackbar}
+        onClose={() => setSnackbar({ message: '' })}
       />
-      <EditProductModal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        product={selectedProducto}
-        categorias={categorias}
-        onUpdate={handleUpdateProduct}
-      />
-      <DeleteProductModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={handleDeleteProduct}
-        product={productToDelete}
-      />
+      {modals[action]}
     </div>
   );
 }

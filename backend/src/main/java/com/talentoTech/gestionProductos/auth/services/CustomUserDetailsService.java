@@ -1,6 +1,6 @@
 package com.talentoTech.gestionProductos.auth.services;
 
-import com.talentoTech.gestionProductos.auth.model.UsuarioModel;
+import com.talentoTech.gestionProductos.auth.model.Usuario;
 import com.talentoTech.gestionProductos.auth.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.*;
@@ -16,7 +16,7 @@ public class CustomUserDetailsService implements UserDetailsService {
   public UserDetails loadUserByUsername(String email)
       throws UsernameNotFoundException {
 
-    UsuarioModel usuario = usuarioRepository.findByEmail(email);
+    Usuario usuario = usuarioRepository.findByEmail(email);
     if (usuario == null) {
       throw new UsernameNotFoundException("Usuario no encontrado con email: " + email);
     }

@@ -1,6 +1,6 @@
 import { Pencil, Trash2 } from "lucide-react";
 
-export default function ProductTable({ productos, onEdit, onDelete }) {
+export default function ProductTable({ productos, categorias, onEdit, onDelete }) {
   return (
     <div className="bg-white rounded-2xl overflow-hidden">
 
@@ -34,10 +34,12 @@ export default function ProductTable({ productos, onEdit, onDelete }) {
                     <h3 className="font-semibold text-gray-800">{producto.nombre}</h3>
                   </div>
                 </td>
-                <td className="px-6 py-5 text-gray-600">{producto.categoria}</td>
+                <td className="px-6 py-5 text-gray-600">
+                  {categorias.find((cat) => cat.id === producto.categoriaID)?.nombre || "Ninguna"}
+                </td>
                 <td className="px-6 py-5 font-medium">${Number(producto.precio).toLocaleString("es-AR")}</td>
                 <td className="px-6 py-5">{producto.stock}</td>
-                <td className="px-6 py-5 text-center">
+                <td className="py-5 text-center">
 
                   {producto.stock > 0 ? (
                     <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm font-medium">En Stock</span>

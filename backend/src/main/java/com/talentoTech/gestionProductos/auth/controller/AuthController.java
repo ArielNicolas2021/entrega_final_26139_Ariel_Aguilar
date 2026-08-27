@@ -1,13 +1,14 @@
 package com.talentoTech.gestionProductos.auth.controller;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.talentoTech.gestionProductos.auth.dto.ApiResponse;
-import com.talentoTech.gestionProductos.auth.dto.LoginRequest;
-import com.talentoTech.gestionProductos.auth.dto.RegisterRequest;
+import com.talentoTech.gestionProductos.auth.dto.LoginDTO;
+import com.talentoTech.gestionProductos.auth.dto.RegisterDTO;
 import com.talentoTech.gestionProductos.auth.dto.TokenResponse;
-import com.talentoTech.gestionProductos.auth.services.AuthService;
+import com.talentoTech.gestionProductos.auth.dto.UsuarioDTO;
+import com.talentoTech.gestionProductos.auth.services.UsuarioService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,20 +17,24 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthController {
-
-    private final AuthService authService;
+    @Autowired
+    UsuarioService usuarioService;
 
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse> register(
-            @Valid @RequestBody RegisterRequest request) {
-
-        return ResponseEntity.ok(authService.register(request));
+    public ResponseEntity<RegisterDTO> register(@Valid @RequestBody UsuarioDTO user) {
+        RegisterDTO response = usuarioService.register(user);
+        if (response.getStatus() == 400) {
+            return ResponseEntity.status(400).body(response);
+        }
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<TokenResponse> login(
-            @Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginDTO user) {
+        if (usuarioService.login(user).getStatus() == 400) {
+            return ResponseEntity.status(400).body(usuarioService.login(user));
+        }
 
-        return ResponseEntity.ok(authService.login(request));
+        return ResponseEntity.ok(usuarioService.login(user));
     }
 }
