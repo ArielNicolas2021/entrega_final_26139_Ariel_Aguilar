@@ -1,67 +1,53 @@
 package com.talentoTech.gestionProductos.exceptions;
 
-import java.util.HashMap;
+import java.sql.SQLIntegrityConstraintViolationException;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
-import tools.jackson.databind.exc.InvalidFormatException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
   @ExceptionHandler(RuntimeException.class)
-  public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
+  public ResponseEntity<?> handleRunTimeException(RuntimeException ex) {
+    Map<String, Object> errorResponse = new LinkedHashMap<>();
+    errorResponse.put("status", HttpStatus.BAD_REQUEST.value());
+    errorResponse.put("mensaje", ex.getMessage());
 
-    return ResponseEntity
-        .status(HttpStatus.BAD_REQUEST)
-        .body(ex.getMessage());
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
   }
 
-  // Manejador de excepciones para errores de deserialización
-  @ExceptionHandler(HttpMessageNotReadableException.class)
-  public ResponseEntity<?> handleDeserializationError(
-      HttpMessageNotReadableException ex) {
+  @ExceptionHandler(IllegalArgumentException.class)
+  public ResponseEntity<?> handleIllegalArgumentException(IllegalArgumentException ex) {
+    Map<String, Object> errorResponse = new LinkedHashMap<>();
+    errorResponse.put("status", HttpStatus.BAD_REQUEST.value());
+    errorResponse.put("mensaje", ex.getMessage());
 
-    String mensaje = "El formato de los datos enviados no es válido";
-
-    Throwable cause = ex.getCause();
-
-    if (cause instanceof InvalidFormatException invalidFormatException) {
-
-      String campo = invalidFormatException
-          .getPath()
-          .get(0)
-          .getPropertyName();
-
-      mensaje = "El campo '" + campo + "' tiene un formato inválido";
-    }
-
-    return ResponseEntity
-        .badRequest()
-        .body(Map.of("error", mensaje));
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
   }
 
-  // Manejador de excepciones para errores de validación
+  @ExceptionHandler(SQLIntegrityConstraintViolationException.class)
+  public ResponseEntity<?> handleSQLIntegrityConstraintViolationException(SQLIntegrityConstraintViolationException ex) {
+    Map<String, Object> errorResponse = new LinkedHashMap<>();
+
+    errorResponse.put("status", HttpStatus.BAD_REQUEST.value());
+    errorResponse.put("mensaje", ex.getMessage());
+
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+  }
+
   @ExceptionHandler(MethodArgumentNotValidException.class)
-  public ResponseEntity<?> handleValidationErrors(
-      MethodArgumentNotValidException ex) {
+  public ResponseEntity<?> handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
+    Map<String, Object> errorResponse = new LinkedHashMap<>();
 
-    Map<String, String> errores = new HashMap<>();
+    errorResponse.put("status", HttpStatus.BAD_REQUEST.value());
+    errorResponse.put("mensaje", ex.getMessage());
 
-    ex.getBindingResult()
-        .getFieldErrors()
-        .forEach(error -> errores.put(
-            error.getField(),
-            error.getDefaultMessage()));
-
-    return ResponseEntity
-        .badRequest()
-        .body(errores);
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
   }
 }

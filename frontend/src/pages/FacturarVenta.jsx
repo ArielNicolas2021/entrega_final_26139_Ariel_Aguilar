@@ -1,341 +1,458 @@
-import { useEffect, useState } from "react";
-import { Search, Plus, Minus, Trash2, Save, Calendar, ChevronDown, ShoppingCart } from "lucide-react";
+import { useEffect, useState, useRef, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import {
+  Search,
+  Plus,
+  Minus,
+  Trash2,
+  Save,
+  Calendar,
+  ChevronDown,
+  ShoppingCart,
+  ArrowLeft,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
+import { useFetch as fetchData } from "../utils/useFetch.js";
+import { extractList } from "../utils/pagination.js";
+
+const getCurrentLocalDateTimeInput = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+const formatToLocalDateTime = (value) => {
+  if (!value) {
+    const now = new Date();
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+    return `${getCurrentLocalDateTimeInput()}:${seconds}`;
+  }
+
+  const trimmed = value.trim();
+  // Si viene de <input type="datetime-local"> ("YYYY-MM-DDTHH:mm")
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(trimmed)) {
+    const seconds = String(new Date().getSeconds()).padStart(2, "0");
+    return `${trimmed}:${seconds}`;
+  }
+  // Si ya tiene segundos ("YYYY-MM-DDTHH:mm:ss")
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+  // Si viene solo fecha ("YYYY-MM-DD")
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mm = String(now.getMinutes()).padStart(2, "0");
+    const ss = String(now.getSeconds()).padStart(2, "0");
+    return `${trimmed}T${hh}:${mm}:${ss}`;
+  }
+
+  return trimmed;
+};
 
 export default function FacturarVenta() {
-  const token = localStorage.getItem("token");
+  const navigate = useNavigate();
+  const prefersReducedMotion = useReducedMotion();
 
+  // Catálogo desde el backend
+  const [productosDisponibles, setProductosDisponibles] = useState([]);
+  const [loadingProductos, setLoadingProductos] = useState(true);
+
+  // Buscador / Dropdown de selección
+  const [busqueda, setBusqueda] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const buscadorRef = useRef(null);
+
+  // Carrito de la venta
   const [productosVenta, setProductosVenta] = useState([]);
 
-  const [cliente, setCliente] = useState("");
-  const [metodoPago, setMetodoPago] = useState("");
+  // Datos de cabecera de la venta
+  const [metodoPago, setMetodoPago] = useState("EFECTIVO");
   const [observaciones, setObservaciones] = useState("");
+  const [fecha, setFecha] = useState(getCurrentLocalDateTimeInput);
 
-  const [fecha, setFecha] = useState(
-    new Date().toISOString().split("T")[0]
-  );
-
-  /*
-   * Por ahora usamos productos de ejemplo.
-   * Después los reemplazamos por los productos
-   * obtenidos desde /api/productos.
-   */
-  const productosDisponibles = [
-    {
-      id: 1,
-      nombre: "Mouse inalámbrico",
-      precio: 2000,
-      stock: 10,
-    },
-    {
-      id: 2,
-      nombre: "Teclado mecánico",
-      precio: 3500,
-      stock: 5,
-    },
-    {
-      id: 3,
-      nombre: "Auriculares RGB",
-      precio: 4800,
-      stock: 8,
-    },
-  ];
+  // Estado de envío y feedback
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState(null); // { type: 'success' | 'error', message: string }
 
   // =========================
-  // AGREGAR PRODUCTO
+  // CARGAR PRODUCTOS DEL BACKEND
   // =========================
+  useEffect(() => {
+    document.title = "Facturar Venta | Gestión Comercial";
 
+    const getProductos = async () => {
+      setLoadingProductos(true);
+      try {
+        const data = await fetchData("productos?size=1000", "GET");
+        setProductosDisponibles(extractList(data));
+      } catch (error) {
+        console.error("Error al obtener los productos:", error);
+        setFeedback({
+          type: "error",
+          message: "No se pudieron cargar los productos disponibles.",
+        });
+      } finally {
+        setLoadingProductos(false);
+      }
+    };
+
+    getProductos();
+  }, []);
+
+  // Cerrar dropdown al hacer clic fuera o presionar Escape
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (buscadorRef.current && !buscadorRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  // Filtrado de productos para el selector
+  const productosFiltrados = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    if (!q) return productosDisponibles;
+    return productosDisponibles.filter((p) => {
+      const id = String(p.id ?? p.productoId ?? "").toLowerCase();
+      const nombre = (p.nombre || "").toLowerCase();
+      const codigo = (p.codigo || "").toLowerCase();
+      return nombre.includes(q) || id.includes(q) || codigo.includes(q);
+    });
+  }, [productosDisponibles, busqueda]);
+
+  // =========================
+  // GESTIÓN DE PRODUCTOS EN VENTA
+  // =========================
   const agregarProducto = (producto) => {
-    const productoExistente = productosVenta.find(
-      (item) => item.id === producto.id
-    );
+    const prodId = producto.id ?? producto.productoId;
+    const stockDisponible = Number(producto.stock ?? 0);
 
-    if (productoExistente) {
-      aumentarCantidad(producto.id);
+    if (stockDisponible <= 0) {
+      setFeedback({
+        type: "error",
+        message: `El producto "${producto.nombre}" no tiene stock disponible.`,
+      });
       return;
     }
 
-    setProductosVenta([
-      ...productosVenta,
-      {
-        ...producto,
-        cantidad: 1,
-      },
-    ]);
+    setFeedback(null);
+
+    setProductosVenta((prev) => {
+      const existente = prev.find((item) => item.id === prodId);
+      if (existente) {
+        if (existente.cantidad >= stockDisponible) {
+          setFeedback({
+            type: "error",
+            message: `Stock máximo alcanzado (${stockDisponible} unid.) para "${producto.nombre}".`,
+          });
+          return prev;
+        }
+        return prev.map((item) =>
+          item.id === prodId ? { ...item, cantidad: item.cantidad + 1 } : item
+        );
+      }
+
+      return [
+        ...prev,
+        {
+          id: prodId,
+          nombre: producto.nombre,
+          precioVenta: Number(producto.precioVenta ?? 0),
+          stock: stockDisponible,
+          cantidad: 1,
+        },
+      ];
+    });
+
+    setBusqueda("");
+    setDropdownOpen(false);
   };
 
-  // =========================
-  // AUMENTAR CANTIDAD
-  // =========================
+  const actualizarCantidad = (id, nuevaCantidad) => {
+    const parsed = parseInt(nuevaCantidad, 10);
+    if (isNaN(parsed)) return;
 
-  const aumentarCantidad = (id) => {
-    setProductosVenta((productos) =>
-      productos.map((producto) => {
-        if (producto.id !== id) {
-          return producto;
-        }
+    if (parsed <= 0) {
+      eliminarProducto(id);
+      return;
+    }
 
-        if (producto.cantidad >= producto.stock) {
-          return producto;
-        }
-
-        return {
-          ...producto,
-          cantidad: producto.cantidad + 1,
-        };
+    setProductosVenta((prev) =>
+      prev.map((producto) => {
+        if (producto.id !== id) return producto;
+        const cantidadFinal = Math.min(parsed, producto.stock);
+        return { ...producto, cantidad: cantidadFinal };
       })
     );
   };
 
-  // =========================
-  // DISMINUIR CANTIDAD
-  // =========================
+  const aumentarCantidad = (id) => {
+    setProductosVenta((prev) =>
+      prev.map((producto) => {
+        if (producto.id !== id || producto.cantidad >= producto.stock) {
+          return producto;
+        }
+        return { ...producto, cantidad: producto.cantidad + 1 };
+      })
+    );
+  };
 
   const disminuirCantidad = (id) => {
-    setProductosVenta((productos) =>
-      productos
-        .map((producto) => {
-          if (producto.id !== id) {
-            return producto;
-          }
-
-          return {
-            ...producto,
-            cantidad: producto.cantidad - 1,
-          };
-        })
+    setProductosVenta((prev) =>
+      prev
+        .map((producto) =>
+          producto.id === id
+            ? { ...producto, cantidad: producto.cantidad - 1 }
+            : producto
+        )
         .filter((producto) => producto.cantidad > 0)
     );
   };
 
-  // =========================
-  // ELIMINAR PRODUCTO
-  // =========================
-
   const eliminarProducto = (id) => {
-    setProductosVenta((productos) =>
-      productos.filter((producto) => producto.id !== id)
-    );
+    setProductosVenta((prev) => prev.filter((producto) => producto.id !== id));
   };
-
-  // =========================
-  // LIMPIAR VENTA
-  // =========================
 
   const limpiarVenta = () => {
     setProductosVenta([]);
-    setCliente("");
-    setMetodoPago("");
+    setMetodoPago("EFECTIVO");
     setObservaciones("");
+    setFecha(getCurrentLocalDateTimeInput());
+    setFeedback(null);
   };
 
   // =========================
-  // SUBTOTAL
+  // CÁLCULOS DE TOTALES
   // =========================
-
   const subtotal = productosVenta.reduce(
-    (total, producto) =>
-      total + producto.precio * producto.cantidad,
+    (acc, producto) => acc + producto.precioVenta * producto.cantidad,
     0
   );
-
-  // =========================
-  // DESCUENTO
-  // =========================
-
   const descuento = 0;
-
-  // =========================
-  // IMPUESTOS
-  // =========================
-
   const impuestos = subtotal * 0.21;
-
-  // =========================
-  // TOTAL
-  // =========================
-
   const total = subtotal - descuento + impuestos;
 
-  // =========================
-  // FORMATEAR PRECIO
-  // =========================
-
-  const formatPrice = (value) => {
-    return value.toLocaleString("es-AR", {
+  const formatPrice = (value) =>
+    Number(value || 0).toLocaleString("es-AR", {
       style: "currency",
       currency: "ARS",
     });
-  };
 
   // =========================
-  // GUARDAR VENTA
+  // GUARDAR VENTA (POST /api/ventas)
   // =========================
-
-  const guardarVenta = () => {
+  const guardarVenta = async () => {
     if (productosVenta.length === 0) {
-      alert("Debés agregar al menos un producto.");
+      setFeedback({
+        type: "error",
+        message: "Debés agregar al menos un producto para generar la venta.",
+      });
       return;
     }
 
-    const venta = {
-      fecha,
-      cliente,
+    if (!metodoPago) {
+      setFeedback({
+        type: "error",
+        message: "Seleccioná un método de pago.",
+      });
+      return;
+    }
+
+    setSaving(true);
+    setFeedback(null);
+
+    const payload = {
+      fecha: formatToLocalDateTime(fecha), // Ej: "2026-10-15T18:30:00"
       metodoPago,
-      observaciones,
+      observaciones: observaciones.trim() || null,
       total,
-      detalles: productosVenta.map((producto) => ({
-        productoId: producto.id,
+      detalleVenta: productosVenta.map((producto) => ({
+        productoID: producto.id,
         cantidad: producto.cantidad,
-        subtotal:
-          producto.precio * producto.cantidad,
       })),
     };
 
-    console.log("Venta:", venta);
+    try {
+      const response = await fetchData("ventas", "POST", payload);
 
-    /*
-     * Acá posteriormente hacemos:
-     *
-     * POST /api/ventas
-     *
-     * enviando:
-     *
-     * {
-     *   cliente,
-     *   fecha,
-     *   total,
-     *   detalles: [...]
-     * }
-     */
+      if (response?.status >= 400 || response?.error) {
+        setFeedback({
+          type: "error",
+          message:
+            response?.message || "Ocurrió un error al registrar la venta.",
+        });
+        return;
+      }
+
+      setFeedback({
+        type: "success",
+        message: "Venta registrada correctamente.",
+      });
+
+      setTimeout(() => {
+        navigate("/ventas");
+      }, 900);
+    } catch (error) {
+      console.error("Error al guardar la venta:", error);
+      setFeedback({
+        type: "error",
+        message: error?.message || "Ocurrió un error al registrar la venta.",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  {/* ========================= */ }
-  { /* TRAEMOS LOS PRODUCTOS DEL BACKEND */ }
-  {/* ========================= */ }
-  useEffect(() => {
-    const getProductos = async () => {
-      try {
-        const response = await fetch("http://localhost:8080/api/productos", {
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          method: "GET"
-        });
-
-        if (!response.ok) { throw new Error(`Error al obtener los productos: ${response.status}`) };
-
-        const data = response.json();
-      } catch (error) {
-        console.error("Error al obtener los productos: ", error)
-      }
-    }
-  }, [])
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-800">Facturar venta</h1>
-        <p className="text-gray-500 mt-1">Creá una nueva venta y agregá los productos correspondientes.</p>
+    <div className="space-y-6 font-sans">
+      {/* Encabezado */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-text-main">Facturar venta</h1>
+          <p className="text-text-muted mt-1">
+            Creá una nueva venta y agregá los productos correspondientes.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => navigate("/ventas")}
+          className="inline-flex items-center gap-2 self-start sm:self-auto px-4 py-2.5 rounded-xl border border-secondary bg-bg-card text-sm font-medium text-text-main hover:bg-secondary transition-colors"
+        >
+          <ArrowLeft size={17} />
+          Volver a Ventas
+        </button>
       </div>
+
+      {/* Alerta de feedback */}
+      <AnimatePresence>
+        {feedback && (
+          <motion.div
+            initial={
+              prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: -8 }
+            }
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            role="alert"
+            className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium ${feedback.type === "success"
+                ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                : "border-red-500/25 bg-red-500/10 text-red-600 dark:text-red-400"
+              }`}
+          >
+            {feedback.type === "success" ? (
+              <CheckCircle2 size={18} className="shrink-0" />
+            ) : (
+              <AlertCircle size={18} className="shrink-0" />
+            )}
+            <span>{feedback.message}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ========================= */}
       {/* DATOS DE LA VENTA */}
       {/* ========================= */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-6">Datos de la venta</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-          {/* Fecha */}
+      <div className="bg-bg-card rounded-2xl border border-secondary shadow-sm p-6">
+        <h2 className="text-lg font-semibold text-text-main mb-6">
+          Datos de la venta
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Fecha y hora */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Fecha</label>
+            <label
+              htmlFor="venta-fecha"
+              className="block text-sm font-medium text-text-main mb-2"
+            >
+              Fecha y hora
+            </label>
             <div className="relative">
-              <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)}
-                className="
-                  w-full
-                  border
-                  border-gray-200
-                  rounded-xl
-                  px-4
-                  py-3
-                  bg-white
-                  outline-none
-                  focus:ring-2
-                  focus:ring-indigo-200
-                "
+              <input
+                id="venta-fecha"
+                type="datetime-local"
+                value={fecha}
+                onChange={(e) => setFecha(e.target.value)}
+                className="w-full border border-secondary rounded-xl px-4 py-3 bg-bg-card text-text-main outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all scheme:light dark:scheme:dark"
               />
-              <Calendar size={18}
-                className="
-                  absolute
-                  right-4
-                  top-1/2
-                  -translate-y-1/2
-                  text-gray-400
-                  pointer-events-none
-                "
+              <Calendar
+                size={18}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
               />
             </div>
           </div>
 
           {/* Método de pago */}
-
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Método de pago</label>
+            <label
+              htmlFor="venta-metodo-pago"
+              className="block text-sm font-medium text-text-main mb-2"
+            >
+              Método de pago
+            </label>
             <div className="relative">
-              <select value={metodoPago} onChange={(e) => setMetodoPago(e.target.value)}
-                className="
-                  w-full
-                  appearance-none
-                  border
-                  border-gray-200
-                  rounded-xl
-                  px-4
-                  py-3
-                  bg-white
-                  text-gray-700
-                  outline-none
-                  focus:ring-2
-                  focus:ring-indigo-200
-                "
+              <select
+                id="venta-metodo-pago"
+                value={metodoPago}
+                onChange={(e) => setMetodoPago(e.target.value)}
+                className="w-full appearance-none border border-secondary rounded-xl px-4 py-3 bg-bg-card text-text-main outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
               >
-                <option value="">Seleccionar método</option>
-                <option value="EFECTIVO">Efectivo</option>
-                <option value="TARJETA">Tarjeta</option>
-                <option value="TRANSFERENCIA">Transferencia</option>
+                <option value="" className="bg-bg-card text-text-main">
+                  Seleccionar método
+                </option>
+                <option value="EFECTIVO" className="bg-bg-card text-text-main">
+                  Efectivo
+                </option>
+                <option value="TARJETA" className="bg-bg-card text-text-main">
+                  Tarjeta
+                </option>
+                <option
+                  value="TRANSFERENCIA"
+                  className="bg-bg-card text-text-main"
+                >
+                  Transferencia
+                </option>
               </select>
-              <ChevronDown size={18}
-                className="
-                  absolute
-                  right-4
-                  top-1/2
-                  -translate-y-1/2
-                  text-gray-400
-                  pointer-events-none
-                "
+              <ChevronDown
+                size={18}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
               />
             </div>
           </div>
 
           {/* Observaciones */}
-
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Observaciones
-              <span className="text-gray-400">
-                {" "}
-                (opcional)
-              </span>
+            <label
+              htmlFor="venta-observaciones"
+              className="block text-sm font-medium text-text-main mb-2"
+            >
+              Observaciones{" "}
+              <span className="text-text-muted">(opcional)</span>
             </label>
-            <input type="text" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} placeholder="Agregar observaciones..."
-              className="
-                w-full
-                border
-                border-gray-200
-                rounded-xl
-                px-4
-                py-3
-                outline-none
-                focus:ring-2
-                focus:ring-indigo-200
-              "
+            <input
+              id="venta-observaciones"
+              type="text"
+              value={observaciones}
+              onChange={(e) => setObservaciones(e.target.value)}
+              placeholder="Agregar observaciones..."
+              className="w-full border border-secondary rounded-xl px-4 py-3 bg-bg-card text-text-main placeholder-text-muted outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
             />
           </div>
         </div>
@@ -344,76 +461,140 @@ export default function FacturarVenta() {
       {/* ========================= */}
       {/* PRODUCTOS + RESUMEN */}
       {/* ========================= */}
-
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-
-        {/* ========================= */}
         {/* PRODUCTOS */}
-        {/* ========================= */}
-
-        <div className="xl:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-
-          {/* Header */}
-
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <h2 className="text-lg font-semibold text-gray-800">Productos</h2>
-              <button onClick={() => agregarProducto(productosDisponibles[0])}
-                className="
-                  flex
-                  items-center
-                  justify-center
-                  gap-2
-                  px-5
-                  py-3
-                  bg-indigo-600
-                  hover:bg-indigo-700
-                  text-white
-                  rounded-xl
-                  transition
-                "
-              >
-                <Plus size={18} />
-                Agregar producto
-              </button>
+        <div className="xl:col-span-2 bg-bg-card rounded-2xl border border-secondary shadow-sm overflow-visible">
+          {/* Header + Buscador selector */}
+          <div className="p-6 border-b border-secondary">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-text-main">Productos</h2>
+              <span className="text-xs font-medium text-text-muted">
+                {loadingProductos
+                  ? "Cargando catálogo..."
+                  : `${productosDisponibles.length} productos disponibles`}
+              </span>
             </div>
 
-            {/* Buscador */}
-
-            <div className="relative mt-5">
-              <Search size={19}
-                className="
-                  absolute
-                  left-4
-                  top-1/2
-                  -translate-y-1/2
-                  text-gray-400
-                "
+            {/* Buscador con resultados desplegables */}
+            <div ref={buscadorRef} className="relative mt-4">
+              <Search
+                size={19}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+              />
+              <input
+                type="text"
+                role="combobox"
+                aria-expanded={dropdownOpen}
+                aria-controls="catalogo-productos-listbox"
+                aria-label="Buscar producto por nombre o ID"
+                value={busqueda}
+                onFocus={() => setDropdownOpen(true)}
+                onChange={(e) => {
+                  setBusqueda(e.target.value);
+                  setDropdownOpen(true);
+                }}
+                placeholder="Buscar y seleccionar producto por nombre o ID..."
+                className="w-full border border-secondary rounded-xl pl-11 pr-4 py-3 bg-bg-card text-text-main placeholder-text-muted outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
               />
 
-              <input type="text" placeholder="Buscar producto por nombre o código..."
-                className="
-                  w-full
-                  border
-                  border-gray-200
-                  rounded-xl
-                  pl-11
-                  pr-4
-                  py-3
-                  outline-none
-                  focus:ring-2
-                  focus:ring-indigo-200
-                "
-              />
+              {/* Lista desplegable de productos */}
+              <AnimatePresence>
+                {dropdownOpen && (
+                  <motion.div
+                    id="catalogo-productos-listbox"
+                    role="listbox"
+                    initial={
+                      prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 4 }
+                    }
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 4 }}
+                    transition={{ duration: 0.14 }}
+                    className="absolute left-0 right-0 z-30 mt-2 max-h-72 overflow-y-auto rounded-xl border border-secondary bg-bg-card shadow-xl divide-y divide-secondary"
+                  >
+                    {loadingProductos ? (
+                      <div className="flex items-center justify-center gap-2 py-6 text-sm text-text-muted">
+                        <Loader2 size={18} className="animate-spin" />
+                        Cargando productos...
+                      </div>
+                    ) : productosFiltrados.length === 0 ? (
+                      <div className="py-6 text-center text-sm text-text-muted">
+                        No se encontraron productos para "{busqueda}".
+                      </div>
+                    ) : (
+                      productosFiltrados.map((prod) => {
+                        const prodId = prod.id ?? prod.productoId;
+                        const sinStock = Number(prod.stock ?? 0) <= 0;
+                        const enCarrito = productosVenta.find(
+                          (item) => item.id === prodId
+                        );
+
+                        return (
+                          <button
+                            key={prodId}
+                            type="button"
+                            role="option"
+                            aria-selected={Boolean(enCarrito)}
+                            disabled={sinStock}
+                            onClick={() => agregarProducto(prod)}
+                            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-secondary/70 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-text-muted overflow-hidden">
+                                <img
+                                  src={prod.imagenUrl}
+                                  alt={prod.nombre}
+                                  loading="lazy"
+                                  className="h-full w-full object-cover object-center"
+                                />
+                              </div>
+                              <div className="truncate">
+                                <p className="text-sm font-semibold text-text-main truncate">
+                                  {prod.nombre}
+                                </p>
+                                <p className="text-xs text-text-muted">
+                                  ID #{prodId} · Stock:{" "}
+                                  <span
+                                    className={
+                                      sinStock
+                                        ? "text-red-500 font-semibold"
+                                        : "text-text-main font-medium"
+                                    }
+                                  >
+                                    {prod.stock ?? 0}
+                                  </span>
+                                  {enCarrito && (
+                                    <span className="ml-2 text-primary font-medium">
+                                      ({enCarrito.cantidad} en carrito)
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 shrink-0 ml-3">
+                              <span className="text-sm font-bold text-text-main">
+                                {formatPrice(prod.precioVenta)}
+                              </span>
+                              <span className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-medium text-white">
+                                <Plus size={14} />
+                                Agregar
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
 
-          {/* Tabla */}
-
+          {/* Tabla de productos seleccionados */}
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr className="text-sm text-gray-500">
+              <thead className="bg-bg-main/60 border-b border-secondary">
+                <tr className="text-xs font-semibold uppercase tracking-wider text-text-muted">
                   <th className="text-left px-6 py-4">Producto</th>
                   <th className="text-left px-6 py-4">Precio unitario</th>
                   <th className="text-center px-6 py-4">Cantidad</th>
@@ -424,63 +605,86 @@ export default function FacturarVenta() {
               <tbody>
                 {productosVenta.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="text-center py-14 text-gray-400">
-                      <ShoppingCart size={40} className="mx-auto mb-3 text-gray-300" />
-                      No hay productos agregados.
+                    <td
+                      colSpan="5"
+                      className="text-center py-14 text-text-muted"
+                    >
+                      <ShoppingCart
+                        size={40}
+                        className="mx-auto mb-3 text-text-muted/50"
+                      />
+                      Buscá y seleccioná un producto arriba para comenzar.
                     </td>
                   </tr>
                 ) : (
                   productosVenta.map((producto) => (
-                    <tr key={producto.id} className="border-t border-gray-100 hover:bg-gray-50">
+                    <tr
+                      key={producto.id}
+                      className="border-t border-secondary hover:bg-bg-main/40 transition-colors"
+                    >
                       {/* Producto */}
                       <td className="px-6 py-5">
                         <div>
-                          <p className="font-semibold text-gray-800">{producto.nombre}</p>
-                          <p className="text-sm text-gray-400 mt-1">ID: {producto.id}</p>
+                          <p className="font-semibold text-text-main">
+                            {producto.nombre}
+                          </p>
+                          <p className="text-xs text-text-muted mt-1">
+                            ID: {producto.id} · Disp: {producto.stock}
+                          </p>
                         </div>
                       </td>
-                      {/* Precio */}
-                      <td className="px-6 py-5 font-medium text-gray-700">{formatPrice(producto.precio)}</td>
-                      {/* Cantidad */}
-                      <td className="px-6 py-5">
-                        <div className="
-                          flex
-                          items-center
-                          justify-center
-                          border
-                          border-gray-200
-                          rounded-lg
-                          overflow-hidden
-                          w-fit
-                          mx-auto
-                        ">
 
-                          <button onClick={() => disminuirCantidad(producto.id)} className="px-3 py-2 hover:bg-gray-100">
-                            <Minus size={16} />
+                      {/* Precio */}
+                      <td className="px-6 py-5 font-medium text-text-main">
+                        {formatPrice(producto.precioVenta)}
+                      </td>
+
+                      {/* Cantidad editable */}
+                      <td className="px-6 py-5">
+                        <div className="flex items-center justify-center border border-secondary rounded-lg overflow-hidden w-fit mx-auto bg-bg-card text-text-main">
+                          <button
+                            type="button"
+                            onClick={() => disminuirCantidad(producto.id)}
+                            aria-label="Disminuir cantidad"
+                            className="px-3 py-2 text-text-main hover:bg-secondary transition-colors"
+                          >
+                            <Minus size={15} />
                           </button>
-                          <span className="px-4 font-medium">{producto.cantidad}</span>
-                          <button onClick={() => aumentarCantidad(producto.id)} className="px-3 py-2 hover:bg-gray-100">
-                            <Plus size={16} />
+                          <input
+                            type="number"
+                            min="1"
+                            max={producto.stock}
+                            value={producto.cantidad}
+                            onChange={(e) =>
+                              actualizarCantidad(producto.id, e.target.value)
+                            }
+                            aria-label={`Cantidad de ${producto.nombre}`}
+                            className="w-12 text-center font-medium text-sm bg-transparent text-text-main outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => aumentarCantidad(producto.id)}
+                            disabled={producto.cantidad >= producto.stock}
+                            aria-label="Aumentar cantidad"
+                            className="px-3 py-2 text-text-main hover:bg-secondary disabled:opacity-40 transition-colors"
+                          >
+                            <Plus size={15} />
                           </button>
                         </div>
                       </td>
+
                       {/* Subtotal */}
-                      <td className="px-6 py-5 font-semibold text-gray-800">{formatPrice(producto.precio * producto.cantidad)}</td>
+                      <td className="px-6 py-5 font-semibold text-text-main">
+                        {formatPrice(producto.precioVenta * producto.cantidad)}
+                      </td>
+
                       {/* Eliminar */}
                       <td className="px-6 py-5">
-                        <button onClick={() => eliminarProducto(producto.id)} className="
-                          mx-auto
-                          flex
-                          items-center
-                          justify-center
-                          w-10
-                          h-10
-                          rounded-lg
-                          border
-                          border-red-100
-                          text-red-500
-                          hover:bg-red-50
-                        "
+                        <button
+                          type="button"
+                          onClick={() => eliminarProducto(producto.id)}
+                          aria-label={`Eliminar ${producto.nombre}`}
+                          className="mx-auto flex items-center justify-center w-10 h-10 rounded-lg border border-red-500/20 text-red-500 hover:bg-red-500/10 transition-colors"
                         >
                           <Trash2 size={18} />
                         </button>
@@ -491,66 +695,73 @@ export default function FacturarVenta() {
               </tbody>
             </table>
           </div>
+
           {/* Limpiar */}
           {productosVenta.length > 0 && (
-            <div className="p-5 border-t border-gray-200">
-              <button onClick={limpiarVenta} className="text-sm text-red-500 hover:text-red-600 font-medium">Limpiar venta</button>
+            <div className="p-5 border-t border-secondary">
+              <button
+                type="button"
+                onClick={limpiarVenta}
+                className="text-sm text-red-500 hover:text-red-400 font-medium transition-colors"
+              >
+                Limpiar venta
+              </button>
             </div>
           )}
         </div>
-        {/* ========================= */}
+
         {/* RESUMEN */}
-        {/* ========================= */}
-        <div className="
-          bg-white
-          rounded-2xl
-          border
-          border-gray-200
-          shadow-sm
-          p-6
-          h-fit
-        "
-        >
-          <h2 className="text-lg font-semibold text-gray-800">Resumen de la venta</h2>
+        <div className="bg-bg-card rounded-2xl border border-secondary shadow-sm p-6 h-fit">
+          <h2 className="text-lg font-semibold text-text-main">
+            Resumen de la venta
+          </h2>
           <div className="mt-7 space-y-5">
             <div className="flex justify-between">
-              <span className="text-gray-500">Subtotal</span>
-              <span className="font-medium">{formatPrice(subtotal)}</span>
+              <span className="text-text-muted">Subtotal</span>
+              <span className="font-medium text-text-main">
+                {formatPrice(subtotal)}
+              </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Descuento</span>
-              <span className="font-medium">{formatPrice(descuento)}</span>
+              <span className="text-text-muted">Descuento</span>
+              <span className="font-medium text-text-main">
+                {formatPrice(descuento)}
+              </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Impuestos (21%)</span>
-              <span className="font-medium">{formatPrice(impuestos)}</span>
+              <span className="text-text-muted">Impuestos (21%)</span>
+              <span className="font-medium text-text-main">
+                {formatPrice(impuestos)}
+              </span>
             </div>
           </div>
-          <div className="border-t border-gray-200 mt-6 pt-6">
+          <div className="border-t border-secondary mt-6 pt-6">
             <div className="flex justify-between items-center">
-              <span className="text-lg font-semibold text-gray-800">Total</span>
-              <span className="text-2xl font-bold text-indigo-600">{formatPrice(total)}</span>
+              <span className="text-lg font-semibold text-text-main">Total</span>
+              <span className="text-2xl font-bold text-primary">
+                {formatPrice(total)}
+              </span>
             </div>
           </div>
+
           {/* Guardar */}
-          <button onClick={guardarVenta} className="
-              w-full
-              mt-7
-              flex
-              items-center
-              justify-center
-              gap-2
-              py-3.5
-              rounded-xl
-              bg-indigo-600
-              hover:bg-indigo-700
-              text-white
-              font-medium
-              transition
-            "
+          <button
+            type="button"
+            disabled={saving || productosVenta.length === 0}
+            onClick={guardarVenta}
+            className="w-full mt-7 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors shadow-sm"
           >
-            <Save size={19} />
-            Guardar venta
+            {saving ? (
+              <>
+                <Loader2 size={19} className="animate-spin" />
+                Guardando venta...
+              </>
+            ) : (
+              <>
+                <Save size={19} />
+                Guardar venta
+              </>
+            )}
           </button>
         </div>
       </div>

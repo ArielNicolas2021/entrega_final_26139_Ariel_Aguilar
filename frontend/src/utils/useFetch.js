@@ -1,16 +1,10 @@
-const API_URL = "http://localhost:8080";
+const API_URL = "http://localhost:8080/api/";
 
 export const useFetch = async (endpoint, method, body) => {
-  const token = localStorage.getItem("token");
 
   const response = await fetch(API_URL + endpoint, {
     method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token && {
-        Authorization: `Bearer ${token}`
-      })
-    },
+    headers: { "Content-Type": "application/json" },
     ...(body && {
       body: JSON.stringify(body)
     })
