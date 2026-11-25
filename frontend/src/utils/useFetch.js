@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:8080/api/";
+const API_URL = "https://talento-tech-gestion-comercial.onrender.com/api/";
 
 export const useFetch = async (endpoint, method, body) => {
 
